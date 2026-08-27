@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="fr-CA">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cédule transporteur</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --bg: #0e1116;
+    --panel: #161b22;
+    --panel-alt: #1c222b;
+    --border: #262d38;
+    --border-soft: #1d2430;
+    --text: #eceff3;
+    --text-dim: #8a92a0;
+    --text-faint: #565f6c;
+    --accent: #4fa3d1;
+    --accent-dim: #274456;
+    --accent-glow: rgba(79,163,209,0.12);
+    --amber: #e8a33d;
+    --amber-bg: #241c10;
+    --amber-border: #4a3617;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+    --display: 'Space Grotesk', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:var(--sans); -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  .wrap{max-width:920px; margin:0 auto; padding:40px 24px 80px;}
+
+  /* header */
+  header{display:flex; justify-content:space-between; align-items:flex-end; gap:16px; margin-bottom:28px; flex-wrap:wrap;}
+  .titleblock{display:flex; align-items:center; gap:12px;}
+  .roadmark{
+    width:34px; height:34px; border-radius:7px; flex:none;
+    background: repeating-linear-gradient(45deg, var(--amber) 0 6px, #1a1408 6px 12px);
+    border:1px solid var(--amber-border);
+  }
+  h1{font-family:var(--display); font-size:22px; font-weight:600; margin:0; letter-spacing:-0.01em;}
+  .subtitle{font-family:var(--mono); font-size:12px; color:var(--text-dim); margin-top:2px;}
+  .meta{font-family:var(--mono); font-size:11px; color:var(--text-faint); text-align:right;}
+
+  /* upload */
+  .dropzone{
+    border:1.5px dashed var(--border); border-radius:12px; padding:40px 20px;
+    text-align:center; color:var(--text-dim); cursor:pointer; transition:.15s;
+    background:var(--panel);
+  }
+  .dropzone:hover, .dropzone.drag{border-color:var(--accent); background:var(--accent-glow); color:var(--text);}
+  .dropzone .big{font-family:var(--display); font-size:15px; color:var(--text); margin-bottom:4px;}
+  .dropzone .small{font-family:var(--mono); font-size:11.5px;}
+  input[type=file]{display:none;}
+
+  /* controls */
+  .controls{
+    display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+    margin:20px 0 24px; padding:12px 16px; background:var(--panel);
+    border:1px solid var(--border-soft); border-radius:10px;
+  }
+  .controls label{font-family:var(--mono); font-size:11px; color:var(--text-dim); display:flex; align-items:center; gap:6px;}
+  .controls input[type=date]{
+    background:var(--panel-alt); border:1px solid var(--border); color:var(--text);
+    font-family:var(--mono); font-size:12px; padding:5px 8px; border-radius:6px;
+  }
+  .btn{
+    font-family:var(--mono); font-size:11.5px; color:var(--text); background:var(--panel-alt);
+    border:1px solid var(--border); padding:7px 12px; border-radius:6px; cursor:pointer; transition:.15s;
+  }
+  .btn:hover{border-color:var(--accent); color:var(--accent);}
+  .btn.primary{background:var(--accent-dim); border-color:var(--accent); color:#cfeaff;}
+  .spacer{flex:1;}
+
+  /* summary bar */
+  .summary{display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap;}
+  .sumcard{
+    flex:1; min-width:120px; background:var(--panel); border:1px solid var(--border-soft);
+    border-radius:10px; padding:12px 14px;
+  }
+  .sumcard .n{font-family:var(--display); font-size:22px; font-weight:600;}
+  .sumcard .l{font-family:var(--mono); font-size:10.5px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.04em;}
+
+  /* groups */
+  .group{
+    background:var(--panel); border:1px solid var(--border-soft); border-radius:12px;
+    margin-bottom:14px; overflow:hidden;
+  }
+  .group.hors-norme{border-color:var(--amber-border);}
+  .grow{display:flex; align-items:stretch;}
+  .gdate{
+    width:118px; flex:none; padding:16px 14px; border-right:1px solid var(--border-soft);
+    display:flex; flex-direction:column; justify-content:center;
+    background:var(--panel-alt);
+  }
+  .gdate .d{font-family:var(--display); font-size:19px; font-weight:600; line-height:1.15;}
+  .gdate .wd{font-family:var(--mono); font-size:10.5px; color:var(--text-dim); text-transform:uppercase; margin-top:2px;}
+  .gbody{flex:1; padding:14px 16px; min-width:0;}
+  .grow2{display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap;}
+  .seqs{display:flex; flex-wrap:wrap; gap:5px;}
+  .chip{
+    font-family:var(--mono); font-size:11px; background:var(--panel-alt); border:1px solid var(--border);
+    color:var(--text-dim); padding:2px 7px; border-radius:5px;
+  }
+  .chip.merged{color:var(--text-faint); border-style:dashed;}
+  .stats{display:flex; align-items:center; gap:14px; flex:none;}
+  .stat{text-align:right;}
+  .stat .v{font-family:var(--mono); font-size:15px; color:var(--text); font-weight:600;}
+  .stat .k{font-family:var(--mono); font-size:9.5px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.03em;}
+  .remcount{
+    font-family:var(--display); font-size:24px; font-weight:700; color:var(--accent);
+    min-width:60px; text-align:center; background:var(--accent-glow); border:1px solid var(--accent-dim);
+    border-radius:8px; padding:6px 10px;
+  }
+  .remcount .u{display:block; font-family:var(--mono); font-size:8.5px; color:var(--text-dim); font-weight:400; letter-spacing:.04em;}
+
+  .assigned{margin-top:10px; display:flex; align-items:center; gap:7px; flex-wrap:wrap;}
+  .assigned .lbl{font-family:var(--mono); font-size:10px; color:var(--text-faint); text-transform:uppercase;}
+  .rchip{
+    font-family:var(--mono); font-size:11px; background:var(--panel-alt); border:1px solid var(--accent-dim);
+    color:var(--accent); padding:2px 7px; border-radius:5px;
+  }
+  .rchip.os{
+    background:var(--amber-bg); border:1px solid var(--amber); color:var(--amber); font-weight:600;
+  }
+
+  .placard{
+    margin-top:12px; background:var(--amber-bg); border:1px solid var(--amber-border);
+    border-radius:8px; padding:10px 12px; position:relative; overflow:hidden;
+  }
+  .placard::before{
+    content:''; position:absolute; left:0; top:0; bottom:0; width:5px;
+    background:repeating-linear-gradient(-45deg, var(--amber) 0 5px, #1a1408 5px 10px);
+  }
+  .placard-head{
+    font-family:var(--mono); font-size:10px; color:var(--amber); text-transform:uppercase;
+    letter-spacing:.05em; font-weight:600; margin-bottom:5px; margin-left:8px;
+  }
+  .placard-item{font-family:var(--mono); font-size:11.5px; color:#e9dcc2; margin-left:8px; line-height:1.5;}
+  .placard-item b{color:var(--amber);}
+
+  .empty{
+    text-align:center; padding:60px 20px; color:var(--text-faint); font-family:var(--mono); font-size:12.5px;
+  }
+
+  details.rules{
+    margin-top:26px; background:var(--panel); border:1px solid var(--border-soft); border-radius:10px;
+    padding:2px 16px;
+  }
+  details.rules summary{
+    cursor:pointer; font-family:var(--mono); font-size:11.5px; color:var(--text-dim); padding:12px 0;
+    list-style:none;
+  }
+  details.rules summary::-webkit-details-marker{display:none;}
+  details.rules summary:before{content:'▸ '; color:var(--accent);}
+  details.rules[open] summary:before{content:'▾ ';}
+  .rules ul{margin:0 0 14px; padding-left:18px; font-family:var(--sans); font-size:12.5px; color:var(--text-dim); line-height:1.7;}
+  .rules code{font-family:var(--mono); background:var(--panel-alt); padding:1px 5px; border-radius:4px; color:var(--accent);}
+
+  @media print{
+    body{background:#fff; color:#000;}
+    .controls, .dropzone, details.rules, .btn{display:none !important;}
+    .group{border:1px solid #ccc; break-inside:avoid;}
+    .gdate{background:#f2f2f2;}
+    .placard{background:#fff8e6; border-color:#e0b25a;}
+    .remcount{background:#eaf3fa; color:#000;}
+  }
+  @media (max-width:640px){
+    .grow{flex-direction:column;}
+    .gdate{width:auto; flex-direction:row; gap:8px; border-right:none; border-bottom:1px solid var(--border-soft);}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="titleblock">
+      <div class="roadmark"></div>
+      <div>
+        <h1>Cédule transporteur</h1>
+        <div class="subtitle" id="subtitle">en attente d'un fichier —</div>
+      </div>
+    </div>
+    <div class="meta" id="meta"></div>
+  </header>
+
+  <div class="dropzone" id="dropzone">
+    <div class="big">Glisse ton export ici, ou clique pour choisir</div>
+    <div class="small">.xlsx — colonnes Date requise, Remorques, Poids, Info Dimensionel</div>
+    <input type="file" id="fileInput" accept=".xlsx,.xls">
+  </div>
+
+  <div class="controls" id="controls" style="display:none;">
+    <label>Du <input type="date" id="dateStart"></label>
+    <label>au <input type="date" id="dateEnd"></label>
+    <button class="btn" id="btnWeek">7 prochains jours</button>
+    <button class="btn" id="btnAll">Tout afficher</button>
+    <div class="spacer"></div>
+    <button class="btn primary" id="btnPrint">Imprimer / PDF</button>
+    <button class="btn" id="btnReset">Changer de fichier</button>
+  </div>
+
+  <div class="summary" id="summary" style="display:none;"></div>
+
+  <div id="results"></div>
+
+  <details class="rules" id="rulesBlock" style="display:none;">
+    <summary>Règles de calcul appliquées</summary>
+    <ul>
+      <li>1 remorque ≈ <code>55 000 lbs</code>.</li>
+      <li>Une séquence chargée à <code>92%</code> ou plus, avec de vraies remorques déjà assignées, est considérée pleinement chargée : ce nombre réel remplace le calcul par poids pour cette séquence et son poids n'est pas repassé dans le calcul.</li>
+      <li>Les séquences sous <code>20 000 lbs</code> sont regroupées avec la date de livraison précédente plutôt que de générer leur propre ligne. Leur poids s'additionne à celui des autres séquences non confirmées de cette date, et c'est ce poids total qui est divisé par 55 000 — rien n'est sous-estimé.</li>
+      <li>Nb de remorques requises (par date) = remorques réelles confirmées + (poids restant mutualisé ÷ 55 000, arrondi au chiffre supérieur).</li>
+      <li>Les séquences à 0 lbs (pas encore fabriquées) ne s'affichent pas.</li>
+      <li>Dans la colonne Remorques, le suffixe <code>OS</code> collé à un numéro (ex. <code>1458 OS</code>) marque cette remorque précise comme hors norme — elle s'affiche en surbrillance avec ses dimensions.</li>
+      <li>Les remorques déjà assignées affichées sont dédupliquées à partir de la colonne Remorques.</li>
+    </ul>
+  </details>
+
+</div>
+
+<script>
+const POIDS_MAX_REMORQUE = 55000;
+const SEUIL_REGROUPEMENT = 20000;
+const SEUIL_CHARGE_PLEIN = 92;
+let ALL_GROUPS = [];
+let TRANSPORTEUR = '';
+
+const dz = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+dz.addEventListener('click', () => fileInput.click());
+['dragenter','dragover'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('drag'); }));
+['dragleave','drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('drag'); }));
+dz.addEventListener('drop', e => { if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', e => { if (e.target.files.length) handleFile(e.target.files[0]); });
+
+document.getElementById('btnReset').addEventListener('click', () => location.reload());
+document.getElementById('btnPrint').addEventListener('click', () => window.print());
+document.getElementById('btnAll').addEventListener('click', () => { setRange(null,null); render(); });
+document.getElementById('btnWeek').addEventListener('click', () => {
+  const today = todayUTC();
+  const end = addDaysUTC(today, 7);
+  setRange(today, end); render();
+});
+document.getElementById('dateStart').addEventListener('change', render);
+document.getElementById('dateEnd').addEventListener('change', render);
+
+function setRange(start, end){
+  document.getElementById('dateStart').value = start ? fmtISO(start) : '';
+  document.getElementById('dateEnd').value = end ? fmtISO(end) : '';
+}
+function fmtISO(d){ return d.toISOString().slice(0,10); }
+// Les dates du fichier sont des dates-calendrier pures (pas d'heure), toujours traitées en UTC
+// pour éviter qu'un décalage de fuseau horaire local ne les fasse glisser d'une journée à l'affichage.
+function todayUTC(){
+  const n = new Date();
+  return new Date(Date.UTC(n.getFullYear(), n.getMonth(), n.getDate()));
+}
+function addDaysUTC(d, days){
+  const r = new Date(d);
+  r.setUTCDate(r.getUTCDate() + days);
+  return r;
+}
+
+function handleFile(file){
+  const reader = new FileReader();
+  reader.onload = e => {
+    const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array', cellDates:true});
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, {defval:null});
+    processRows(rows, file.name);
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function parsePct(av){
+  if(!av) return 0;
+  const m = String(av).match(/Charg[ée]:\s*([\d.]+)\s*%/i);
+  return m ? parseFloat(m[1]) : 0;
+}
+function splitRemorques(cell){
+  // éclate la colonne Remorques et détecte le suffixe "OS" (hors norme) collé au numéro,
+  // ex: "1401\n1422\n1458 OS" -> la remorque 1458 est marquée hors norme.
+  if(!cell) return [];
+  return String(cell).split(/[\n,]+/).map(s=>s.trim()).filter(Boolean).map(tok => {
+    const m = tok.match(/^(.*?)\s*OS$/i);
+    return m ? { num: m[1].trim(), os: true } : { num: tok, os: false };
+  });
+}
+function extractDim(info){
+  if(!info) return '';
+  const parts = [];
+  const lm = info.match(/Longueur max:\s*([^\n]+)/i);
+  if(lm) parts.push(lm[1].trim());
+  const hw = info.match(/Hauteur\/Largeur max:\s*([^\n]+)/i);
+  if(hw) parts.push(hw[1].trim());
+  if(!parts.length){
+    const mention = info.match(/Mention:\s*([^\n]+)/i);
+    if(mention) parts.push(mention[1].trim());
+  }
+  return parts.join(' × ');
+}
+
+function processRows(rows, filename){
+  TRANSPORTEUR = '';
+  const recs = rows
+    .filter(r => r['Date requise'] && Number(r['Poids']) > 0)
+    .map(r => {
+      const poids = Number(r['Poids']) || 0;
+      const chargePct = parsePct(r['Avancement']);
+      const remorquesReelles = splitRemorques(r['Remorques']);
+      const infoDim = r['Info Dimensionel'] ? String(r['Info Dimensionel']).trim() : '';
+      const dims = extractDim(infoDim);
+      const calc = poids > 0 ? Math.ceil(poids / POIDS_MAX_REMORQUE) : 0;
+      if (!TRANSPORTEUR && r['Transporteur']) TRANSPORTEUR = r['Transporteur'];
+      return {
+        seq: r['# Séq.'],
+        date: new Date(r['Date requise']),
+        poids, chargePct, remorquesReelles, calc,
+        infoDim, dims
+      };
+    })
+    .sort((a,b) => a.date - b.date || (a.seq - b.seq));
+
+  // regroupement : séquences < 20000 lbs rejoignent la date précédente
+  let currentKey = null;
+  const map = new Map();
+  recs.forEach(r => {
+    const ownKey = fmtISO(r.date);
+    let key;
+    if (r.poids < SEUIL_REGROUPEMENT && currentKey !== null) {
+      key = currentKey;
+    } else {
+      key = ownKey;
+      currentKey = ownKey;
+    }
+    r._merged = (key !== ownKey);
+    if (!map.has(key)) map.set(key, { dateKey:key, date:new Date(key), rows:[] });
+    map.get(key).rows.push(r);
+  });
+
+  ALL_GROUPS = [...map.values()].map(g => {
+    const poidsTotal = g.rows.reduce((s,r)=>s+r.poids,0);
+    // séquences "confirmées" : chargées à 92% et plus, avec de vraies remorques déjà assignées —
+    // leur poids est déjà couvert par ce nombre réel, on ne le repasse pas dans le calcul par poids.
+    const confirmees = g.rows.filter(r => r.chargePct >= SEUIL_CHARGE_PLEIN && r.remorquesReelles.length > 0);
+    const remorquesConfirmees = confirmees.reduce((s,r) => s + r.remorquesReelles.length, 0);
+    // tout le reste (grosses séquences non confirmées + petites séquences fusionnées) est mis en
+    // commun : leur poids s'additionne avant d'être divisé par 55 000, pour ne pas sous-estimer.
+    const poidsMutualise = g.rows.filter(r => !confirmees.includes(r)).reduce((s,r) => s + r.poids, 0);
+    const remorquesMutualisees = poidsMutualise > 0 ? Math.ceil(poidsMutualise / POIDS_MAX_REMORQUE) : 0;
+    const remorquesRequises = remorquesConfirmees + remorquesMutualisees;
+    // dédup des remorques assignées ; une remorque marquée OS sur n'importe quelle séquence
+    // de la date reste marquée hors norme, avec ses dimensions.
+    const remMap = new Map();
+    g.rows.forEach(r => r.remorquesReelles.forEach(rr => {
+      const prev = remMap.get(rr.num);
+      if (!prev || (rr.os && !prev.os)) remMap.set(rr.num, { num: rr.num, os: rr.os, dims: rr.os ? r.dims : (prev ? prev.dims : '') });
+    }));
+    const remorquesAssignees = [...remMap.values()];
+    const infoDim = g.rows.filter(r=>r.infoDim).map(r=>({seq:r.seq, txt:r.infoDim}));
+    return { ...g, poidsTotal, remorquesRequises, remorquesAssignees, infoDim };
+  }).sort((a,b) => a.date - b.date);
+
+  document.getElementById('dropzone').style.display = 'none';
+  document.getElementById('controls').style.display = 'flex';
+  document.getElementById('rulesBlock').style.display = 'block';
+  document.getElementById('subtitle').textContent = (TRANSPORTEUR || 'transporteur') + ' — ' + filename;
+  document.getElementById('meta').textContent = 'généré le ' + fmtISO(new Date());
+
+  const today = todayUTC();
+  const end = addDaysUTC(today, 7);
+  const hasNext7 = ALL_GROUPS.some(g => g.date >= today && g.date <= end);
+  if (hasNext7) setRange(today, end); else setRange(null, null);
+  render();
+}
+
+function render(){
+  const startVal = document.getElementById('dateStart').value;
+  const endVal = document.getElementById('dateEnd').value;
+  const start = startVal ? new Date(startVal) : null;
+  const end = endVal ? new Date(endVal) : null;
+
+  const groups = ALL_GROUPS.filter(g => (!start || g.date >= start) && (!end || g.date <= end));
+
+  const totalRem = groups.reduce((s,g)=>s+g.remorquesRequises,0);
+  const totalHN = groups.filter(g=>g.infoDim.length>0).length;
+  document.getElementById('summary').style.display = groups.length ? 'flex' : 'none';
+  document.getElementById('summary').innerHTML = `
+    <div class="sumcard"><div class="n">${groups.length}</div><div class="l">dates de livraison</div></div>
+    <div class="sumcard"><div class="n">${totalRem}</div><div class="l">remorques requises</div></div>
+    <div class="sumcard"><div class="n">${totalHN}</div><div class="l">jours hors norme</div></div>
+  `;
+
+  const el = document.getElementById('results');
+  if (!groups.length){
+    el.innerHTML = `<div class="empty">Aucune livraison dans cette plage de dates.</div>`;
+    return;
+  }
+
+  el.innerHTML = groups.map(g => {
+    const wd = g.date.toLocaleDateString('fr-CA', {weekday:'long', timeZone:'UTC'});
+    const dstr = g.date.toLocaleDateString('fr-CA', {day:'2-digit', month:'short', timeZone:'UTC'});
+    const seqChips = g.rows.map(r => `<span class="chip ${r._merged?'merged':''}">${r.seq}${r._merged?' ↩':''}</span>`).join('');
+    const assigned = g.remorquesAssignees.length
+      ? `<div class="assigned"><span class="lbl">Remorques déjà assignées</span>${g.remorquesAssignees.map(r=>
+          r.os
+            ? `<span class="rchip os">⚠ #${r.num} — hors norme${r.dims ? ` (${r.dims})` : ''}</span>`
+            : `<span class="rchip">#${r.num}</span>`
+        ).join('')}</div>`
+      : '';
+    const placard = g.infoDim.length
+      ? `<div class="placard"><div class="placard-head">⚠ Chargement hors norme</div>
+          ${g.infoDim.map(d=>`<div class="placard-item"><b>Séq. ${d.seq} —</b> ${d.txt.replace(/\n/g,' · ')}</div>`).join('')}
+        </div>`
+      : '';
+    return `
+      <div class="group ${g.infoDim.length?'hors-norme':''}">
+        <div class="grow">
+          <div class="gdate"><div class="wd">${wd}</div><div class="d">${dstr}</div></div>
+          <div class="gbody">
+            <div class="grow2">
+              <div>
+                <div class="seqs">${seqChips}</div>
+                ${assigned}
+              </div>
+              <div class="stats">
+                <div class="stat"><div class="v">${g.poidsTotal.toLocaleString('fr-CA')}</div><div class="k">lbs</div></div>
+                <div class="remcount">${g.remorquesRequises}<span class="u">remorques</span></div>
+              </div>
+            </div>
+            ${placard}
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+</script>
+</body>
+</html>
